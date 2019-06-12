@@ -306,7 +306,7 @@ std::vector<BasicPoint3d>  fine_centerline(const ConstLanelet &lanelet)
   prev_pt = left.front().basicPoint();
   for(BasicPoint3d pt : left)
   {
-
+    if(left_points.size() >= partitions) break;
     //continue if not points are made
     double local_distance = geometry::distance2d(pt, prev_pt);
     if(local_distance + residue < left_resolution) {
@@ -333,6 +333,7 @@ std::vector<BasicPoint3d>  fine_centerline(const ConstLanelet &lanelet)
   right_points.push_back(right.front());
   for(BasicPoint3d pt : right)
   {
+    if(right_points.size() >= partitions) break;
     //continue if not points are made
     double local_distance = geometry::distance2d(pt, prev_pt);
     if(local_distance +  residue < right_resolution) {
@@ -355,7 +356,16 @@ std::vector<BasicPoint3d>  fine_centerline(const ConstLanelet &lanelet)
   right_points.push_back(right.back());
 
   if(right_points.size() != left_points.size()) {
-    ROS_ERROR_STREAM("left and right has different number of points. (right,left) " << right_points.size() << ","<< left_points.size() << "failed to calculate centerline!!!" << std::endl);
+    ROS_ERROR_STREAM("left and right has different number of points. (right,left) " << right_points.size() << ","<< left_points.size() << "failed to calculate centerline!!!" << std::endl
+                  << lanelet.id() << " " << right_resolution << " " << left_resolution << " " << partitions << " " << left_distance << " " << right_distance << std::endl);
+                  for (auto p: right_points)
+                  {
+                    std::cout << p << std::endl;
+                  }
+                  for (auto p: left_points)
+                  {
+                    std::cout << p << std::endl;
+                  }
     exit(1);
   }
 
@@ -954,7 +964,7 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
                    return iter != waypoint_id_correction.end();
                  });
   waypoints.erase(result, waypoints.end());
-  
+
   for( auto &point : points)
   {
     fixPointCoordinate(point);
