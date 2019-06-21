@@ -427,6 +427,7 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
   std::unordered_map<int, autoware_map_msgs::Point> waypoint_id_to_point_map;
   std::unordered_map<int, int> waypoint_id_correction;
   std::unordered_map<int, std::shared_ptr<autoware_map_msgs::Waypoint> > waypoints_map;
+  std::set<lanelet::Id> stop_line_checklist;
 
   std::vector<ConstLanelet> vehicle_lanelets;
 
@@ -522,7 +523,6 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
   for (auto line : map->lineStringLayer)
   {
     if(line.attributes()[AttributeName::Type]==AttributeValueString::StopLine) {
-      double min = 100;
       for(auto relation : waypoint_relations)
       {
         auto wp = waypoints_map.at(relation.waypoint_id);
@@ -559,14 +559,9 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
         if (amathutils::isIntersectLine(l1_p1, l1_p2, l2_p1, l2_p2)) {
           wp->stop_line = 1;
         }
-
-
       }
+      stop_line_checklist.insert(line.id());
     }
-  }
-  for(auto item : waypoints_map)
-  {
-    waypoints.push_back(*(item.second));
   }
 
   //Get lane relation
@@ -648,6 +643,7 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
         autoware_map_msgs::Signal awmap_signal;
         awmap_signal.signal_id = signal_id++;
         signals.push_back(awmap_signal);
+        if(line.isPolygon()) ROS_ERROR_STREAM("currently, this converter only supports traffic light in linestring(not polygon)");
         if(!line.lineString()) continue;
         auto bulbs = ConstHybridLineString3d(line.lineString().value());
         int color_count = 1;
@@ -713,26 +709,78 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
     }
   }
 
-  //stop_lines
-  // for (auto lanelet : vehicle_lanelets)
-  // {
-  //     auto traffic_lights = lanelet.regulatoryElementsAs<TrafficLight>();
-  //     for (auto light : traffic_lights)
-  //     {
-  //         if(!light->stopLine()) {
-  //             continue;
-  //         }
-  //         ConstLineString3d stop_line = light->stopLine().value();
-  //         for(auto &waypoint : waypoints)
-  //         {
-  //             auto point = waypoint_id_to_point_map.at(waypoint.waypoint_id);
-  //             auto point3d = Point3d(point.point_id, point.x, point.y, point.z);
-  //             if(geometry::distance(point3d, stop_line) == 0.0) {
-  //                 waypoint.stop_line = 1;
-  //             }
-  //         }
-  //     }
-  // }
+  // stop_lines
+  for (auto lanelet : vehicle_lanelets)
+  {
+      auto traffic_lights = lanelet.regulatoryElementsAs<TrafficLight>();
+      for (auto light : traffic_lights)
+      {
+          if(!light->stopLine()) {
+              continue;
+          }
+          ConstLineString3d line = light->stopLine().value();
+          std::cout << "line" << line.id() << std::endl;
+
+          if( stop_line_checklist.find(line.id()) != stop_line_checklist.end() )
+          {
+            continue;
+          }
+          stop_line_checklist.insert(line.id());
+          std::cout << "line" << line.id() << std::endl;
+
+          for(auto relation : waypoint_relations)
+          {
+            auto wp = waypoints_map.at(relation.waypoint_id);
+            auto next_wp = waypoints_map.at(relation.next_waypoint_id);
+            auto pt = waypoint_id_to_point_map.at(wp->waypoint_id);
+            auto next_pt = waypoint_id_to_point_map.at(next_wp->waypoint_id);
+            Point3d p1(pt.x,pt.y,pt.z);
+            Point3d p2(next_pt.x, next_pt.y, next_pt.z);
+            double epsilon = 0.1;
+
+            if(amathutils::distanceFromSegment(line.front().x(),line.front().y(),
+                                               line.back().x(),line.back().y(),
+                                               pt.x,pt.y) <= epsilon )
+            {
+              wp->stop_line = 1;
+              std::cout << __LINE__ << std::endl;
+              continue;
+            }
+            if(amathutils::distanceFromSegment(line.front().x(),line.front().y(),
+                                               line.back().x(),line.back().y(),
+                                               next_pt.x,next_pt.y) <= epsilon) {
+              next_wp->stop_line = 1;
+              std::cout << __LINE__ << std::endl;
+              continue;
+            }
+            geometry_msgs::Point l1_p1, l1_p2, l2_p1, l2_p2;
+            l1_p1.x = line.front().x();
+            l1_p1.y = line.front().y();
+            l1_p2.x = line.back().x();
+            l1_p2.y = line.back().y();
+            l2_p1.x = pt.x;
+            l2_p1.y = pt.y;
+            l2_p2.x = next_pt.x;
+            l2_p2.y = next_pt.y;
+
+            if (amathutils::isIntersectLine(l1_p1, l1_p2, l2_p1, l2_p2)) {
+              std::cout << __LINE__ << " " << wp->waypoint_id<< std::endl;
+              wp->stop_line = 1;
+            }
+          }
+
+          //
+          // for(auto &waypoint : waypoints)
+          // {
+          //     auto point = waypoint_id_to_point_map.at(waypoint.waypoint_id);
+          //     auto point3d = Point3d(point.point_id, point.x, point.y, point.z);
+          //     if(geometry::distance(point3d, stop_line) == 0.0) {
+          //         waypoint.stop_line = 1;
+          //     }
+          // }
+      }
+  }
+
 
   //intersection
   int area_id = 1;
@@ -956,6 +1004,11 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
     relation.waypoint_id = getNewId(relation.waypoint_id, waypoint_id_correction);
   }
 
+  for(auto item : waypoints_map)
+  {
+    waypoints.push_back(*(item.second));
+  }
+
   //remove overlapping waypoints
   //i.e. end of lane and beginning of following lane
   auto result = std::remove_if(waypoints.begin(), waypoints.end(),
@@ -964,6 +1017,21 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
                    return iter != waypoint_id_correction.end();
                  });
   waypoints.erase(result, waypoints.end());
+
+  for(auto wp :waypoints)
+  {
+    if(wp.waypoint_id == 1265)
+    {
+      std::cout << wp << std::endl;
+    }
+  }
+
+  std::cout << *waypoints_map.at(1265) << std::endl;
+
+  if( waypoint_id_correction.find(1265) != waypoint_id_correction.end() )
+  {
+    std::cout << "erased" << std::endl;
+  }
 
   for( auto &point : points)
   {
