@@ -493,7 +493,7 @@ void createDTLanes(const autoware_map::AutowareMapHandler &awmap,
   // key = waypoint_relation
   // value = lnid;
   std::unordered_map<uint_pair, unsigned int, boost::hash<uint_pair> > wp_relation2lnid;
-  unsigned int id = 1;
+  unsigned int id = 0;
   for ( auto r : awmap_waypoint_relations )
   {
     auto key = std::make_pair(r.waypoint_id,r.next_waypoint_id);
@@ -545,21 +545,21 @@ void createDTLanes(const autoware_map::AutowareMapHandler &awmap,
     vmap_lane.flid3 = 0;
     vmap_lane.flid4 = 0;
     if(merging_idx.size() >= 1)
-      vmap_lane.blid = merging_idx.at(0);
+      vmap_lane.blid = merging_idx.at(0)+1;
     if(merging_idx.size() >= 2)
-      vmap_lane.blid2 = merging_idx.at(1);
+      vmap_lane.blid2 = merging_idx.at(1)+1;
     if(merging_idx.size() >= 3)
-      vmap_lane.blid3 = merging_idx.at(2);
+      vmap_lane.blid3 = merging_idx.at(2)+1;
     if(merging_idx.size() >= 4)
-      vmap_lane.blid4 = merging_idx.at(3);
+      vmap_lane.blid4 = merging_idx.at(3)+1;
     if(branching_idx.size() >= 1)
-      vmap_lane.flid = branching_idx.at(0);
+      vmap_lane.flid = branching_idx.at(0)+1;
     if(branching_idx.size() >= 2)
-      vmap_lane.flid2 = branching_idx.at(1);
+      vmap_lane.flid2 = branching_idx.at(1)+1;
     if(branching_idx.size() >= 3)
-      vmap_lane.flid3 = branching_idx.at(2);
+      vmap_lane.flid3 = branching_idx.at(2)+1;
     if(branching_idx.size() >= 4)
-      vmap_lane.flid4 = branching_idx.at(3);
+      vmap_lane.flid4 = branching_idx.at(3)+1;
     vmap_lane.bnid = awmap_waypoint.waypoint_id;
     vmap_lane.fnid = awmap_next_waypoint.waypoint_id;
     vmap_lane.span =  awmap_waypoint_relation.distance;
@@ -584,9 +584,7 @@ void createDTLanes(const autoware_map::AutowareMapHandler &awmap,
 
     vmap_lane.roadsecid = 0;
     vmap_lane.linkwaid = 0;
-    if(vmap_lane.lnid == 158){
-      std::cerr << __LINE__ << std::endl;
-    }
+
     vmap_lanes.push_back(vmap_lane);
     id++;
   }
@@ -1191,7 +1189,7 @@ void createWhitelines(const autoware_map::AutowareMapHandler &awmap,
       }else{
         autoware_map::Waypoint next =*( waypoint->getNextWaypoint(awmap_lane.lane_id) );
         if ( distance2d(*waypoint->getPointPtr(), *next.getPointPtr()) < epsilon)
-        { 
+        {
           continue;
         }
         next_yaw = getAngleToNextWaypoint(waypoint,awmap_lane.lane_id);
@@ -1312,15 +1310,15 @@ void createDummyUtilityPoles(const std::vector<vector_map_msgs::Pole> vmap_poles
 double distance2d(const autoware_map_msgs::Point p1, const autoware_map_msgs::Point p2)
 {
   geometry_msgs::Point geo_p1, geo_p2;
-  
+
   geo_p1.x = p1.x;
   geo_p1.y = p1.y;
   geo_p1.z = 0;
   geo_p2.x = p2.x;
   geo_p2.y = p2.y;
   geo_p2.z = 0;
-  
-  return amathutils::find_distance(geo_p1, geo_p2);  
+
+  return amathutils::find_distance(geo_p1, geo_p2);
 }
 
 //keep angles within (M_PI, -M_PI]
@@ -1361,10 +1359,10 @@ double convertDecimalToDDMMSS(const double decimal)
   if( decimal < 0 )
     sign = -1;
   else
-    sign = 1; 
-    
+    sign = 1;
+
   double unsigned_decimal = sign * decimal;
-  
+
   degree = floor(unsigned_decimal);
   minutes = floor( (unsigned_decimal - degree ) * 60);
   seconds = floor( (unsigned_decimal - degree - minutes * 1.0 / 60) * 3600);

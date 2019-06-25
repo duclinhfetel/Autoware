@@ -456,6 +456,7 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
     double width_limit = std::numeric_limits<double>::max();
     for( auto center_point : fine_centerline(lanelet))
     {
+      std::cout << center_point << std::endl;
       //point
       autoware_map_msgs::Waypoint awmap_waypoint;
       autoware_map_msgs::Point awmap_point = convertPoint(center_point, projector);
@@ -781,6 +782,7 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
       }
   }
 
+  std::cerr << __LINE__ << std::endl;
 
   //intersection
   int area_id = 1;
@@ -882,6 +884,7 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
       lane_attribute_relations.push_back(lane_attribute_relation);
     }
   }
+  std::cerr << __LINE__ << std::endl;
 
   //cross_walks
   std::unordered_map<long long int, int> cross_walk_id_conversion;
@@ -934,13 +937,14 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
       lane_attribute_relations.push_back(lane_attribute_relation);
     }
   }
+  std::cerr << __LINE__ << std::endl;
 
   for(auto item : lane_map)
   {
     lanes.push_back(item.second);
   }
 
-
+  std::cerr << __LINE__ << std::endl;
   //preparation to remove overlapping waypoint
   std::unordered_map<int, bool> wp_checklist;
 
@@ -1017,21 +1021,6 @@ void convertLanelet2AutowareMap(LaneletMapPtr map,
                    return iter != waypoint_id_correction.end();
                  });
   waypoints.erase(result, waypoints.end());
-
-  for(auto wp :waypoints)
-  {
-    if(wp.waypoint_id == 1265)
-    {
-      std::cout << wp << std::endl;
-    }
-  }
-
-  std::cout << *waypoints_map.at(1265) << std::endl;
-
-  if( waypoint_id_correction.find(1265) != waypoint_id_correction.end() )
-  {
-    std::cout << "erased" << std::endl;
-  }
 
   for( auto &point : points)
   {

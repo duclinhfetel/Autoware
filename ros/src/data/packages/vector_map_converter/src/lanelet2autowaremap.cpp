@@ -71,7 +71,11 @@ int main(int argc, char **argv)
     using namespace lanelet;
     ErrorMessages errors;
     projection::UtmProjector projector(Origin({origin_lat,origin_lon}));
+
     LaneletMapPtr map = load(map_file_path, projector, &errors);
+    for (auto error : errors){
+      std::cout << error << std::endl;
+    }
     autoware_map::AutowareMapHandler map_handler;
 
     convertLanelet2AutowareMap(map,
@@ -91,6 +95,8 @@ int main(int argc, char **argv)
                                waypoint_lane_relations,
                                waypoint_relations,
                                waypoint_signal_relations);
+                               std::cerr << __LINE__ << std::endl;
+
     writeAutowareMapMsgs(save_dir,
                          areas,
                          lanes,
